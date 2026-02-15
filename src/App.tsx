@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import './App.css';
-import { api } from './lib/api';
-import { getAdminToken, setAdminToken } from './lib/storage';
+import { API_BASE, api } from './lib/api';
+import { setAdminToken } from './lib/storage';
 import type { AuthUser } from './types/subscribers';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './components/AdminLayout';
@@ -14,17 +14,10 @@ import OrganizationsPage from './pages/OrganizationsPage';
 
 const App = () => {
   const [ready, setReady] = useState(false);
-  const [token, setToken] = useState<string>(() => getAdminToken());
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     const bootstrap = async () => {
-      const existingToken = getAdminToken();
-      if (!existingToken) {
-        setReady(true);
-        return;
-      }
-
       try {
         const response = await api.get('/admin/auth/me');
         const nextUser = (response?.data?.data?.user || null) as AuthUser | null;
@@ -32,10 +25,8 @@ const App = () => {
           throw new Error('Session user not found.');
         }
         setUser(nextUser);
-        setToken(existingToken);
       } catch {
         setAdminToken('');
-        setToken('');
         setUser(null);
       } finally {
         setReady(true);
@@ -45,10 +36,7 @@ const App = () => {
     void bootstrap();
   }, []);
 
-  const isAuthenticated = useMemo(
-    () => Boolean(token && user?.email),
-    [token, user?.email]
-  );
+  const isAuthenticated = useMemo(() => Boolean(user?.email), [user?.email]);
 
   const handleLogin = async (identifier: string, password: string) => {
     const loginResponse = await api.post('/admin/auth/login', { identifier, password });
@@ -61,8 +49,12 @@ const App = () => {
     }
 
     setAdminToken(nextToken);
-    setToken(nextToken);
     setUser(profile);
+  };
+
+  const handleGoogleLogin = () => {
+    const next = encodeURIComponent('/overview');
+    window.location.assign(`${API_BASE}/admin/auth/google?next=${next}`);
   };
 
   const handleLogout = async () => {
@@ -72,7 +64,6 @@ const App = () => {
       // Swallow logout errors and clear local auth state anyway.
     } finally {
       setAdminToken('');
-      setToken('');
       setUser(null);
     }
   };
@@ -86,7 +77,7 @@ const App = () => {
             isAuthenticated ? (
               <Navigate to='/overview' replace />
             ) : (
-              <LoginPage onLogin={handleLogin} />
+              <LoginPage onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} />
             )
           }
         />

@@ -5,6 +5,7 @@ Internal admin application for LeadsBox operations. This app is separate from cu
 ## Features
 
 - Admin login using dedicated admin auth (`/admin/auth/login`)
+- Admin Google login (`/admin/auth/google`) with backend email allowlist enforcement
 - Overview dashboard (`/admin/overview`)
 - User management (`/admin/users`) with suspend/restore controls
 - Organization management (`/admin/organizations`) with activate/deactivate controls
@@ -49,6 +50,10 @@ To access admin endpoints successfully:
 2. Add admin app origin to backend CORS config:
 - set `ADMIN_APP_URL`
 - or include origin in `CORS_ORIGINS`
+3. Configure backend Google OAuth values:
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `ADMIN_GOOGLE_REDIRECT_URI` (must match `/api/admin/auth/google/callback` on your backend)
 
 Only emails in `METRICS_ADMIN_EMAILS` can log in to this admin app.
 
