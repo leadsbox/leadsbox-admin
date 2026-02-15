@@ -4,7 +4,7 @@ Internal admin application for LeadsBox operations. This app is separate from cu
 
 ## Features
 
-- Admin login using existing backend auth (`/auth/login`)
+- Admin login using dedicated admin auth (`/admin/auth/login`)
 - Overview dashboard (`/admin/overview`)
 - User management (`/admin/users`) with suspend/restore controls
 - Organization management (`/admin/organizations`) with activate/deactivate controls
@@ -49,6 +49,8 @@ To access admin endpoints successfully:
 2. Add admin app origin to backend CORS config:
 - set `ADMIN_APP_URL`
 - or include origin in `CORS_ORIGINS`
+
+Only emails in `METRICS_ADMIN_EMAILS` can log in to this admin app.
 
 Example:
 

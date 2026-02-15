@@ -26,8 +26,8 @@ const App = () => {
       }
 
       try {
-        const response = await api.get('/auth/me');
-        const nextUser = (response?.data?.user || null) as AuthUser | null;
+        const response = await api.get('/admin/auth/me');
+        const nextUser = (response?.data?.data?.user || null) as AuthUser | null;
         if (!nextUser) {
           throw new Error('Session user not found.');
         }
@@ -51,7 +51,7 @@ const App = () => {
   );
 
   const handleLogin = async (identifier: string, password: string) => {
-    const loginResponse = await api.post('/auth/login', { identifier, password });
+    const loginResponse = await api.post('/admin/auth/login', { identifier, password });
     const payload = loginResponse?.data?.data || {};
     const profile = (payload.profile || null) as AuthUser | null;
     const nextToken = (payload.token || payload?.profile?.token || '').trim();
@@ -67,7 +67,7 @@ const App = () => {
 
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout');
+      await api.post('/admin/auth/logout');
     } catch {
       // Swallow logout errors and clear local auth state anyway.
     } finally {
