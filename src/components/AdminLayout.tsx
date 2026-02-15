@@ -1,5 +1,14 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import type { AuthUser } from '../types/subscribers';
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  CreditCard,
+  Sparkles,
+  LogOut,
+} from 'lucide-react';
+import LeadsBoxBrand from './LeadsBoxBrand';
 
 type AdminLayoutProps = {
   user: AuthUser | null;
@@ -18,27 +27,28 @@ const AdminLayout = ({ user, onLogout }: AdminLayoutProps) => {
     <div className='admin-shell'>
       <aside className='admin-sidebar'>
         <Link to='/subscribers' className='brand'>
-          <span className='brand-badge'>LB</span>
-          <span>
-            <strong>LeadsBox Admin</strong>
-            <small>Internal control plane</small>
-          </span>
+          <LeadsBoxBrand />
         </Link>
 
         <nav className='sidebar-nav'>
           <NavLink to='/overview' className='nav-item'>
+            <LayoutDashboard className='nav-item-icon' />
             Overview
           </NavLink>
           <NavLink to='/users' className='nav-item'>
+            <Users className='nav-item-icon' />
             Users
           </NavLink>
           <NavLink to='/organizations' className='nav-item'>
+            <Building2 className='nav-item-icon' />
             Organizations
           </NavLink>
           <NavLink to='/subscribers' className='nav-item'>
+            <CreditCard className='nav-item-icon' />
             Subscribers
           </NavLink>
           <button type='button' className='nav-item nav-item-muted' onClick={() => navigate('/overview')}>
+            <Sparkles className='nav-item-icon' />
             AI Ops (soon)
           </button>
         </nav>
@@ -46,6 +56,7 @@ const AdminLayout = ({ user, onLogout }: AdminLayoutProps) => {
         <div className='sidebar-footer'>
           <p>{displayName}</p>
           <button type='button' onClick={onLogout}>
+            <LogOut className='nav-item-icon' />
             Sign out
           </button>
         </div>
