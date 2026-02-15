@@ -87,6 +87,42 @@ export type DailyMetric = {
   count: number;
 };
 
+export type SaleItem = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  currency: string;
+  lineTotal?: number;
+};
+
+export type Sale = {
+  id: string;
+  amount: number;
+  currency: string;
+  status: 'PENDING' | 'PAID' | 'VOID' | 'PARTIAL';
+  items: SaleItem[];
+  createdAt: string;
+  isAutoDetected: boolean;
+  lead: {
+    id: string;
+    contact: {
+      displayName: string | null;
+      phone: string | null;
+    } | null;
+  };
+  detectionConfidence?: number;
+  detectionReasoning?: string;
+};
+
+export type ReviewInboxResponse = {
+  sales: Sale[];
+  summary: {
+    pendingCount: number;
+    highRiskCount: number;
+    averageConfidence: number;
+  };
+};
+
 export type AdminAnalytics = {
   dailyUsers: DailyMetric[];
   dailyOrgs: DailyMetric[];

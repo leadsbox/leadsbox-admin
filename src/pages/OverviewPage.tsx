@@ -3,6 +3,7 @@ import { AxiosError } from 'axios';
 import { api } from '../lib/api';
 import type { AdminOverview, AdminAnalytics } from '../types/admin';
 import { AnalyticsCharts } from '../components/AnalyticsCharts';
+import { ReviewInbox } from '../components/ReviewInbox';
 
 const defaultOverview: AdminOverview = {
   generatedAt: '',
@@ -100,6 +101,8 @@ const OverviewPage = () => {
           <strong>{formatMoney(overview.subscriptions.mrrMajor)}</strong>
         </article>
       </div>
+
+      <ReviewInbox />
 
       {analytics && <AnalyticsCharts data={analytics} />}
     </section>
