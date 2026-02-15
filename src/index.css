@@ -1,6 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+
 html,
 body,
 #root {
   margin: 0;
   min-height: 100%;
+  font-family: "Manrope", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
