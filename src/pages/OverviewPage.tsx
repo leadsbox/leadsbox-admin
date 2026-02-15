@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import { AxiosError } from 'axios';
 import { api } from '../lib/api';
-import type { AdminOverview } from '../types/admin';
+import type { AdminOverview, AdminAnalytics } from '../types/admin';
+import { AnalyticsCharts } from '../components/AnalyticsCharts';
 
 const defaultOverview: AdminOverview = {
   generatedAt: '',
@@ -19,18 +21,25 @@ const formatMoney = (amount: number) => {
 
 const OverviewPage = () => {
   const [overview, setOverview] = useState<AdminOverview>(defaultOverview);
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const loadOverview = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError('');
-      const response = await api.get('/admin/overview');
-      const payload = response?.data?.data as AdminOverview | undefined;
-      setOverview(payload || defaultOverview);
-    } catch (loadError: any) {
-      setError(loadError?.response?.data?.message || 'Failed to load overview.');
+
+      const [overviewRes, analyticsRes] = await Promise.all([api.get('/admin/overview'), api.get('/admin/analytics')]);
+
+      const overviewPayload = overviewRes?.data?.data as AdminOverview | undefined;
+      const analyticsPayload = analyticsRes?.data?.data as AdminAnalytics | undefined;
+
+      setOverview(overviewPayload || defaultOverview);
+      setAnalytics(analyticsPayload || null);
+    } catch (loadError) {
+      const message = (loadError as AxiosError<{ message: string }>)?.response?.data?.message || 'Failed to load dashboard data.';
+      setError(message);
       setOverview(defaultOverview);
     } finally {
       setLoading(false);
@@ -38,7 +47,7 @@ const OverviewPage = () => {
   };
 
   useEffect(() => {
-    void loadOverview();
+    void loadData();
   }, []);
 
   return (
@@ -49,7 +58,7 @@ const OverviewPage = () => {
           <p>High-level operating metrics across users, organizations, and subscriptions.</p>
         </div>
         <div className='header-actions'>
-          <button type='button' onClick={() => void loadOverview()} disabled={loading}>
+          <button type='button' onClick={() => void loadData()} disabled={loading}>
             {loading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
@@ -91,6 +100,8 @@ const OverviewPage = () => {
           <strong>{formatMoney(overview.subscriptions.mrrMajor)}</strong>
         </article>
       </div>
+
+      {analytics && <AnalyticsCharts data={analytics} />}
     </section>
   );
 };

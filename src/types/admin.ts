@@ -81,3 +81,14 @@ export type AdminOrganizationsPayload = {
   offset: number;
   organizations: AdminOrganizationRow[];
 };
+
+export type DailyMetric = {
+  date: string;
+  count: number;
+};
+
+export type AdminAnalytics = {
+  dailyUsers: DailyMetric[];
+  dailyOrgs: DailyMetric[];
+  dailyMessages: DailyMetric[];
+};
