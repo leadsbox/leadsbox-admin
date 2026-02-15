@@ -87,6 +87,12 @@ export type DailyMetric = {
   count: number;
 };
 
+export type DailyRevenueMetric = {
+  date: string;
+  amount: number;
+  count: number;
+};
+
 export type SaleItem = {
   name: string;
   quantity: number;
@@ -127,4 +133,5 @@ export type AdminAnalytics = {
   dailyUsers: DailyMetric[];
   dailyOrgs: DailyMetric[];
   dailyMessages: DailyMetric[];
+  dailyRevenue?: DailyRevenueMetric[];
 };

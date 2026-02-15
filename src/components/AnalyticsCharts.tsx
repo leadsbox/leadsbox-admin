@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import type { AdminAnalytics } from '../types/admin';
 
 interface AnalyticsChartsProps {
@@ -53,6 +53,56 @@ export const AnalyticsCharts = ({ data }: AnalyticsChartsProps) => {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {data.dailyRevenue && (
+        <>
+          <div className='chart-card full-width'>
+            <h3>Revenue Trend (30d)</h3>
+            <div className='chart-container'>
+              <ResponsiveContainer width='100%' height={300}>
+                <AreaChart data={data.dailyRevenue}>
+                  <defs>
+                    <linearGradient id='colorRevenue' x1='0' y1='0' x2='0' y2='1'>
+                      <stop offset='5%' stopColor='#10b981' stopOpacity={0.8} />
+                      <stop offset='95%' stopColor='#10b981' stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray='3 3' vertical={false} />
+                  <XAxis dataKey='date' tickFormatter={formatDate} minTickGap={30} tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => `₦${value / 1000}k`} />
+                  <Tooltip
+                    labelFormatter={(label: unknown) => formatDate(label as string)}
+                    formatter={(value: number | undefined) => [
+                      new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(value || 0),
+                      'Revenue',
+                    ]}
+                  />
+                  <Area type='monotone' dataKey='amount' stroke='#10b981' fillOpacity={1} fill='url(#colorRevenue)' />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className='chart-card'>
+            <h3>Daily Sales Volume (30d)</h3>
+            <div className='chart-container'>
+              <ResponsiveContainer width='100%' height={300}>
+                <BarChart data={data.dailyRevenue}>
+                  <CartesianGrid strokeDasharray='3 3' vertical={false} />
+                  <XAxis dataKey='date' tickFormatter={formatDate} minTickGap={30} tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                  <Tooltip
+                    labelFormatter={(label: unknown) => formatDate(label as string)}
+                    formatter={(value: number | undefined) => [value || 0, 'Sales Count']}
+                    cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                  />
+                  <Bar dataKey='count' fill='#f59e0b' radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className='chart-card full-width'>
         <h3>Message Volume (30d)</h3>
