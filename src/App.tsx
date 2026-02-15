@@ -1,0 +1,119 @@
+import { useEffect, useMemo, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import './App.css';
+import { api } from './lib/api';
+import { getAdminToken, setAdminToken } from './lib/storage';
+import type { AuthUser } from './types/subscribers';
+import ProtectedRoute from './components/ProtectedRoute';
+import AdminLayout from './components/AdminLayout';
+import LoginPage from './pages/LoginPage';
+import SubscribersPage from './pages/SubscribersPage';
+import OverviewPage from './pages/OverviewPage';
+import UsersPage from './pages/UsersPage';
+import OrganizationsPage from './pages/OrganizationsPage';
+
+const App = () => {
+  const [ready, setReady] = useState(false);
+  const [token, setToken] = useState<string>(() => getAdminToken());
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    const bootstrap = async () => {
+      const existingToken = getAdminToken();
+      if (!existingToken) {
+        setReady(true);
+        return;
+      }
+
+      try {
+        const response = await api.get('/auth/me');
+        const nextUser = (response?.data?.user || null) as AuthUser | null;
+        if (!nextUser) {
+          throw new Error('Session user not found.');
+        }
+        setUser(nextUser);
+        setToken(existingToken);
+      } catch {
+        setAdminToken('');
+        setToken('');
+        setUser(null);
+      } finally {
+        setReady(true);
+      }
+    };
+
+    void bootstrap();
+  }, []);
+
+  const isAuthenticated = useMemo(
+    () => Boolean(token && user?.email),
+    [token, user?.email]
+  );
+
+  const handleLogin = async (identifier: string, password: string) => {
+    const loginResponse = await api.post('/auth/login', { identifier, password });
+    const payload = loginResponse?.data?.data || {};
+    const profile = (payload.profile || null) as AuthUser | null;
+    const nextToken = (payload.token || payload?.profile?.token || '').trim();
+
+    if (!profile || !nextToken) {
+      throw new Error('Login response is missing token/profile.');
+    }
+
+    setAdminToken(nextToken);
+    setToken(nextToken);
+    setUser(profile);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Swallow logout errors and clear local auth state anyway.
+    } finally {
+      setAdminToken('');
+      setToken('');
+      setUser(null);
+    }
+  };
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path='/login'
+          element={
+            isAuthenticated ? (
+              <Navigate to='/overview' replace />
+            ) : (
+              <LoginPage onLogin={handleLogin} />
+            )
+          }
+        />
+
+        <Route
+          element={
+            <ProtectedRoute ready={ready} isAuthenticated={isAuthenticated}>
+              <AdminLayout user={user} onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to='/overview' replace />} />
+          <Route path='/overview' element={<OverviewPage />} />
+          <Route path='/users' element={<UsersPage />} />
+          <Route path='/organizations' element={<OrganizationsPage />} />
+          <Route path='/subscribers' element={<SubscribersPage />} />
+        </Route>
+
+        <Route
+          path='*'
+          element={
+            <Navigate to={isAuthenticated ? '/overview' : '/login'} replace />
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+export default App;
