@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
 
 // Simple Tab Component
@@ -33,6 +33,17 @@ interface AdminProfile {
   ownedOrganizations: Organization[];
 }
 
+interface Campaign {
+  id: string;
+  name: string;
+  status: string;
+  type: string;
+  createdAt: string;
+  _count?: {
+    leads: number;
+  };
+}
+
 const GrowthPage = () => {
   const [activeTab, setActiveTab] = useState('discovery');
   const [query, setQuery] = useState('');
@@ -41,6 +52,12 @@ const GrowthPage = () => {
   const [loading, setLoading] = useState(false);
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
+
+  // Campaign State
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [newCampaignName, setNewCampaignName] = useState('');
+  const [creatingCampaign, setCreatingCampaign] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
 
   useEffect(() => {
     api.get('/admin/auth/me').then((res) => {
@@ -51,6 +68,63 @@ const GrowthPage = () => {
       }
     });
   }, []);
+
+  const fetchCampaigns = useCallback(async () => {
+    if (!selectedOrgId) return;
+    try {
+      const res = await api.get(`/growth/campaigns?organizationId=${selectedOrgId}`);
+      setCampaigns(res.data?.data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [selectedOrgId]);
+
+  useEffect(() => {
+    if (selectedOrgId) {
+      fetchCampaigns();
+    }
+  }, [selectedOrgId, fetchCampaigns]);
+
+  const handleCreateCampaign = async () => {
+    if (!newCampaignName || !selectedOrgId) return;
+    setCreatingCampaign(true);
+    try {
+      await api.post('/growth/campaigns', {
+        name: newCampaignName,
+        type: 'WHATSAPP_OUTBOUND',
+        organizationId: selectedOrgId,
+      });
+      setNewCampaignName('');
+      fetchCampaigns();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to create campaign');
+    } finally {
+      setCreatingCampaign(false);
+    }
+  };
+
+  const handleStartCampaign = async (campaignId: string) => {
+    try {
+      await api.post(`/growth/campaigns/${campaignId}/start`, { organizationId: selectedOrgId });
+      alert('Campaign started!');
+      fetchCampaigns();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to start campaign');
+    }
+  };
+
+  const handlePauseCampaign = async (campaignId: string) => {
+    try {
+      await api.post(`/growth/campaigns/${campaignId}/pause`, { organizationId: selectedOrgId });
+      alert('Campaign paused!');
+      fetchCampaigns();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to pause campaign');
+    }
+  };
 
   const handleSearch = async () => {
     if (!selectedOrgId) {
@@ -72,7 +146,12 @@ const GrowthPage = () => {
   const handleImport = async () => {
     if (results.length === 0) return;
     try {
-      await api.post('/growth/leads/import', { leads: results, sourceName: `Map: ${query} in ${location}` });
+      await api.post('/growth/leads/import', {
+        leads: results,
+        sourceName: `Map: ${query} in ${location}`,
+        organizationId: selectedOrgId,
+        campaignId: selectedCampaignId || undefined,
+      });
       alert('Leads imported successfully!');
       setResults([]);
     } catch (err) {
@@ -126,9 +205,23 @@ const GrowthPage = () => {
             <div>
               <div className='flex justify-between items-center mb-2'>
                 <h3 className='font-bold'>Results ({results.length})</h3>
-                <button onClick={handleImport} className='text-green-600 font-bold border border-green-600 px-3 py-1 rounded'>
-                  Import All
-                </button>
+                <div className='flex gap-2 items-center'>
+                  <select
+                    className='border p-2 rounded bg-white text-sm'
+                    value={selectedCampaignId}
+                    onChange={(e) => setSelectedCampaignId(e.target.value)}
+                  >
+                    <option value=''>No Campaign (Just Import)</option>
+                    {campaigns.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button onClick={handleImport} className='text-green-600 font-bold border border-green-600 px-3 py-1 rounded'>
+                    Import All
+                  </button>
+                </div>
               </div>
               <div className='grid gap-2'>
                 {results.map((r, i) => (
@@ -149,7 +242,79 @@ const GrowthPage = () => {
         </div>
       )}
 
-      {activeTab === 'campaigns' && <div className='text-center p-10 text-gray-500'>Campaign Management coming soon...</div>}
+      {activeTab === 'campaigns' && (
+        <div className='bg-white p-6 rounded shadow'>
+          <div className='flex justify-between items-center mb-6'>
+            <h2 className='text-xl'>Campaigns</h2>
+          </div>
+
+          <div className='mb-8 p-4 bg-gray-50 rounded'>
+            <h3 className='font-bold mb-2'>Create New Campaign</h3>
+            <div className='flex gap-2'>
+              <input
+                className='border p-2 rounded flex-1'
+                placeholder='Campaign Name (e.g. Lagos Plumbers Outreach)'
+                value={newCampaignName}
+                onChange={(e) => setNewCampaignName(e.target.value)}
+              />
+              <button
+                className='bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50'
+                onClick={handleCreateCampaign}
+                disabled={creatingCampaign || !newCampaignName}
+              >
+                {creatingCampaign ? 'Creating...' : 'Create Campaign'}
+              </button>
+            </div>
+          </div>
+
+          <table className='w-full'>
+            <thead>
+              <tr className='text-left border-b'>
+                <th className='pb-2'>Name</th>
+                <th className='pb-2'>Status</th>
+                <th className='pb-2'>Leads</th>
+                <th className='pb-2'>Created</th>
+                <th className='pb-2'>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {campaigns.map((c) => (
+                <tr key={c.id} className='border-b'>
+                  <td className='py-3 font-medium'>{c.name}</td>
+                  <td className='py-3'>
+                    <span className={`px-2 py-1 rounded text-xs ${c.status === 'RUNNING' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}>
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className='py-3'>{c._count?.leads || 0}</td>
+                  <td className='py-3 text-gray-500 text-sm'>{new Date(c.createdAt).toLocaleDateString()}</td>
+                  <td className='py-3'>
+                    <div className='flex gap-2 text-sm'>
+                      {c.status === 'DRAFT' || c.status === 'PAUSED' ? (
+                        <button onClick={() => handleStartCampaign(c.id)} className='text-green-600 hover:underline font-bold'>
+                          Start
+                        </button>
+                      ) : (
+                        <button onClick={() => handlePauseCampaign(c.id)} className='text-orange-600 hover:underline font-bold'>
+                          Pause
+                        </button>
+                      )}
+                      <button className='text-blue-600 hover:underline'>Manage</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {campaigns.length === 0 && (
+                <tr>
+                  <td colSpan={5} className='py-8 text-center text-gray-500'>
+                    No campaigns found. Create one to get started.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
