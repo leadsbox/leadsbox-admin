@@ -1,13 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import type { AuthUser } from '../types/subscribers';
-import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  CreditCard,
-  Sparkles,
-  LogOut,
-} from 'lucide-react';
+import { LayoutDashboard, Users, Building2, CreditCard, Sparkles, LogOut } from 'lucide-react';
 import LeadsBoxBrand from './LeadsBoxBrand';
 
 type AdminLayoutProps = {
@@ -17,11 +10,7 @@ type AdminLayoutProps = {
 
 const AdminLayout = ({ user, onLogout }: AdminLayoutProps) => {
   const navigate = useNavigate();
-  const displayName =
-    [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
-    user?.username ||
-    user?.email ||
-    'Admin';
+  const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || user?.username || user?.email || 'Admin';
 
   return (
     <div className='admin-shell'>
@@ -46,6 +35,10 @@ const AdminLayout = ({ user, onLogout }: AdminLayoutProps) => {
           <NavLink to='/subscribers' className='nav-item'>
             <CreditCard className='nav-item-icon' />
             Subscribers
+          </NavLink>
+          <NavLink to='/growth' className='nav-item'>
+            <Sparkles className='nav-item-icon' />
+            Growth Engine
           </NavLink>
           <button type='button' className='nav-item nav-item-muted' onClick={() => navigate('/overview')}>
             <Sparkles className='nav-item-icon' />

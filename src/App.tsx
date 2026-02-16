@@ -11,6 +11,7 @@ import SubscribersPage from './pages/SubscribersPage';
 import OverviewPage from './pages/OverviewPage';
 import UsersPage from './pages/UsersPage';
 import OrganizationsPage from './pages/OrganizationsPage';
+import GrowthPage from './pages/GrowthPage';
 
 const App = () => {
   const [ready, setReady] = useState(false);
@@ -73,13 +74,7 @@ const App = () => {
       <Routes>
         <Route
           path='/login'
-          element={
-            isAuthenticated ? (
-              <Navigate to='/overview' replace />
-            ) : (
-              <LoginPage onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} />
-            )
-          }
+          element={isAuthenticated ? <Navigate to='/overview' replace /> : <LoginPage onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} />}
         />
 
         <Route
@@ -94,14 +89,10 @@ const App = () => {
           <Route path='/users' element={<UsersPage />} />
           <Route path='/organizations' element={<OrganizationsPage />} />
           <Route path='/subscribers' element={<SubscribersPage />} />
+          <Route path='/growth' element={<GrowthPage />} />
         </Route>
 
-        <Route
-          path='*'
-          element={
-            <Navigate to={isAuthenticated ? '/overview' : '/login'} replace />
-          }
-        />
+        <Route path='*' element={<Navigate to={isAuthenticated ? '/overview' : '/login'} replace />} />
       </Routes>
     </BrowserRouter>
   );
