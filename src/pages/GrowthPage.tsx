@@ -39,6 +39,7 @@ interface Campaign {
   status: string;
   type: string;
   createdAt: string;
+  templateBody?: string;
   _count?: {
     leads: number;
   };
@@ -56,6 +57,9 @@ const GrowthPage = () => {
   // Campaign State
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [newCampaignName, setNewCampaignName] = useState('');
+  const [templateBody, setTemplateBody] = useState(
+    'Hello {{name}}! I saw your business on Google Maps. Are you interested in getting more customers?',
+  );
   const [creatingCampaign, setCreatingCampaign] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
 
@@ -91,6 +95,7 @@ const GrowthPage = () => {
     try {
       await api.post('/growth/campaigns', {
         name: newCampaignName,
+        templateBody,
         type: 'WHATSAPP_OUTBOUND',
         organizationId: selectedOrgId,
       });
@@ -250,20 +255,34 @@ const GrowthPage = () => {
 
           <div className='mb-8 p-4 bg-gray-50 rounded'>
             <h3 className='font-bold mb-2'>Create New Campaign</h3>
-            <div className='flex gap-2'>
-              <input
-                className='border p-2 rounded flex-1'
-                placeholder='Campaign Name (e.g. Lagos Plumbers Outreach)'
-                value={newCampaignName}
-                onChange={(e) => setNewCampaignName(e.target.value)}
-              />
-              <button
-                className='bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50'
-                onClick={handleCreateCampaign}
-                disabled={creatingCampaign || !newCampaignName}
-              >
-                {creatingCampaign ? 'Creating...' : 'Create Campaign'}
-              </button>
+            <div className='flex flex-col gap-4'>
+              <div className='flex gap-2'>
+                <input
+                  className='border p-2 rounded flex-1'
+                  placeholder='Campaign Name (e.g. Lagos Plumbers Outreach)'
+                  value={newCampaignName}
+                  onChange={(e) => setNewCampaignName(e.target.value)}
+                />
+                <button
+                  className='bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50'
+                  onClick={handleCreateCampaign}
+                  disabled={creatingCampaign || !newCampaignName}
+                >
+                  {creatingCampaign ? 'Creating...' : 'Create Campaign'}
+                </button>
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 mb-1'>Message Template</label>
+                <textarea
+                  className='border p-2 rounded w-full h-24 font-mono text-sm'
+                  placeholder='Message Template (use {{name}} for lead name)'
+                  value={templateBody}
+                  onChange={(e) => setTemplateBody(e.target.value)}
+                />
+                <p className='text-xs text-gray-500 mt-1'>
+                  Variables: {'{{name}}'}, {'{{businessName}}'}
+                </p>
+              </div>
             </div>
           </div>
 
