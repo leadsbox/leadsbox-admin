@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, triggerInternalScraper } from '../lib/api';
-import type { ScraperTriggerResult } from '../lib/api';
+import { api, triggerInternalScraper, getLeakageAudit } from '../lib/api';
+import type { ScraperTriggerResult, LeakageAuditResult } from '../lib/api';
 
 // --- Styled Components / Icons (Inline styles for now to match App.css patterns) ---
 
@@ -117,6 +117,14 @@ const GrowthPage = () => {
   const [scraperLoading, setScraperLoading] = useState(false);
   const [scraperResult, setScraperResult] = useState<ScraperTriggerResult | null>(null);
   const [scraperError, setScraperError] = useState<string | null>(null);
+
+  // Revenue Leakage Audit State
+  const [auditOrgId, setAuditOrgId] = useState('');
+  const [auditAov, setAuditAov] = useState(100);
+  const [auditDays, setAuditDays] = useState(7);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditResult, setAuditResult] = useState<LeakageAuditResult | null>(null);
+  const [auditError, setAuditError] = useState<string | null>(null);
 
   // Initial Fetch
   useEffect(() => {
@@ -256,6 +264,27 @@ const GrowthPage = () => {
     }
   };
 
+  const handleRunAudit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auditOrgId.trim()) return;
+    setAuditLoading(true);
+    setAuditResult(null);
+    setAuditError(null);
+    try {
+      const result = await getLeakageAudit(auditOrgId.trim(), auditAov, auditDays);
+      setAuditResult(result);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : ((err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            'Failed to generate report. Check the org ID is correct and the backend is running.');
+      setAuditError(message);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
   // --- Render ---
 
   return (
@@ -297,7 +326,7 @@ const GrowthPage = () => {
       </header>
 
       {/* Tabs */}
-      <Tabs active={activeTab} onChange={setActiveTab} tabs={['discovery', 'campaigns', 'leads', 'dogfooding']} />
+      <Tabs active={activeTab} onChange={setActiveTab} tabs={['discovery', 'campaigns', 'leads', 'dogfooding', 'audit']} />
 
       {/* === Discovery Tab === */}
       {activeTab === 'discovery' && (
@@ -797,6 +826,303 @@ const GrowthPage = () => {
 
           {/* Inline spinner keyframe */}
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+      {/* === Audit Tab — Revenue Leakage Report (Presentation Mode) === */}
+      {activeTab === 'audit' && (
+        <div style={{ display: 'grid', gap: '2rem' }}>
+          {/* Header */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.4rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>💸</span>
+              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Revenue Leakage Audit</h2>
+              <span
+                style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  background: 'rgba(239,68,68,0.12)',
+                  color: '#f87171',
+                  border: '1px solid rgba(239,68,68,0.3)',
+                  borderRadius: '6px',
+                  padding: '2px 8px',
+                }}
+              >
+                Presentation Mode
+              </span>
+            </div>
+            <p style={{ margin: 0, color: 'var(--text-dim)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+              Paste the client org ID, set their estimated deal value, and generate the financial report to share on screen during your Day 7 Zoom
+              close.
+            </p>
+          </div>
+
+          {/* Controls */}
+          <form
+            onSubmit={handleRunAudit}
+            style={{
+              background: 'var(--panel-soft)',
+              border: '1px solid var(--panel-border)',
+              borderRadius: '14px',
+              padding: '1.5rem',
+              display: 'grid',
+              gridTemplateColumns: '1fr auto auto auto',
+              gap: '1rem',
+              alignItems: 'flex-end',
+            }}
+          >
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.8rem', fontWeight: 600 }}>Client Organization ID</label>
+              <input
+                value={auditOrgId}
+                onChange={(e) => setAuditOrgId(e.target.value)}
+                placeholder='clxxxxxxxxxxxxxx'
+                required
+                style={{ width: '100%', height: '2.6rem', fontFamily: 'monospace', fontSize: '0.85rem' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.8rem', fontWeight: 600 }}>Avg Order Value ($)</label>
+              <input
+                type='number'
+                min={1}
+                value={auditAov}
+                onChange={(e) => setAuditAov(Number(e.target.value))}
+                style={{ width: '110px', height: '2.6rem' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.8rem', fontWeight: 600 }}>Window (days)</label>
+              <input
+                type='number'
+                min={1}
+                max={30}
+                value={auditDays}
+                onChange={(e) => setAuditDays(Number(e.target.value))}
+                style={{ width: '90px', height: '2.6rem' }}
+              />
+            </div>
+            <button
+              type='submit'
+              disabled={auditLoading || !auditOrgId.trim()}
+              style={{
+                height: '2.6rem',
+                padding: '0 1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                opacity: auditLoading ? 0.7 : 1,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {auditLoading ? (
+                <>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '0.9em',
+                      height: '0.9em',
+                      borderRadius: '50%',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      borderTopColor: '#fff',
+                      animation: 'spin 0.7s linear infinite',
+                    }}
+                  />
+                  Generating…
+                </>
+              ) : (
+                'Generate Report'
+              )}
+            </button>
+          </form>
+
+          {/* Error */}
+          {auditError && (
+            <div
+              style={{
+                background: 'rgba(239,68,68,0.08)',
+                border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: '12px',
+                padding: '1rem 1.25rem',
+                display: 'flex',
+                gap: '0.75rem',
+                alignItems: 'flex-start',
+              }}
+            >
+              <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-dim)' }}>{auditError}</p>
+              <button
+                onClick={() => setAuditError(null)}
+                style={{
+                  marginLeft: 'auto',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-dim)',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                }}
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* Report */}
+          {auditResult && (
+            <div style={{ display: 'grid', gap: '1.5rem' }}>
+              {/* Report header bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '1rem 1.5rem',
+                  background: 'var(--panel-soft)',
+                  border: '1px solid var(--panel-border)',
+                  borderRadius: '12px',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>{auditResult.organizationName}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+                    Last {auditResult.windowDays} days · AOV ${auditResult.aov.toLocaleString()} · Generated{' '}
+                    {new Date(auditResult.generatedAt).toLocaleString()}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setAuditResult(null);
+                    setAuditOrgId('');
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--panel-border)',
+                    borderRadius: '8px',
+                    padding: '0.4rem 1rem',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+
+              {/* 🔴 Hero metric */}
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '3.5rem 2rem',
+                  background: 'radial-gradient(ellipse at center, rgba(239,68,68,0.14) 0%, transparent 72%)',
+                  border: '1px solid rgba(239,68,68,0.35)',
+                  borderRadius: '20px',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: '#f87171',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  ⚠️ Estimated Revenue Leaked — Last {auditResult.windowDays} Days
+                </div>
+                <div
+                  style={{
+                    fontSize: 'clamp(3.5rem, 10vw, 7rem)',
+                    fontWeight: 900,
+                    color: '#ef4444',
+                    lineHeight: 1,
+                    letterSpacing: '-0.03em',
+                    textShadow: '0 0 80px rgba(239,68,68,0.5)',
+                  }}
+                >
+                  ${auditResult.revenueLeaked.toLocaleString()}
+                </div>
+                <div style={{ marginTop: '1.25rem', fontSize: '0.9rem', color: 'var(--text-dim)' }}>
+                  {auditResult.missedOpportunities} missed or slow-reply conversations &times; ${auditResult.aov} AOV
+                </div>
+              </div>
+
+              {/* Supporting stat cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: '1rem' }}>
+                {(
+                  [
+                    {
+                      icon: '📨',
+                      label: 'Total Inquiries',
+                      value: auditResult.totalInquiries.toLocaleString(),
+                      sub: `In last ${auditResult.windowDays} days`,
+                      color: 'var(--accent)',
+                    },
+                    {
+                      icon: '🔕',
+                      label: 'Missed / Late Replies',
+                      value: auditResult.missedOpportunities.toLocaleString(),
+                      sub: 'No reply or > 4 hours',
+                      color: '#f87171',
+                    },
+                    {
+                      icon: '⚡',
+                      label: 'Response Rate',
+                      value: `${auditResult.responseRate}%`,
+                      sub: 'Timely first replies',
+                      color: auditResult.responseRate >= 80 ? 'var(--success)' : 'var(--warn)',
+                    },
+                    {
+                      icon: '⏱️',
+                      label: 'Avg Response Time',
+                      value:
+                        auditResult.avgResponseTimeMinutes != null
+                          ? auditResult.avgResponseTimeMinutes >= 60
+                            ? `${Math.floor(auditResult.avgResponseTimeMinutes / 60)}h ${auditResult.avgResponseTimeMinutes % 60}m`
+                            : `${auditResult.avgResponseTimeMinutes}m`
+                          : 'N/A',
+                      sub: 'First reply latency',
+                      color: 'var(--text-dim)',
+                    },
+                  ] as const
+                ).map(({ icon, label, value, sub, color }) => (
+                  <div
+                    key={label}
+                    style={{
+                      background: 'var(--panel-soft)',
+                      border: '1px solid var(--panel-border)',
+                      borderRadius: '14px',
+                      padding: '1.25rem',
+                    }}
+                  >
+                    <div style={{ fontSize: '1.3rem', marginBottom: '0.5rem' }}>{icon}</div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, marginTop: '0.4rem' }}>{label}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginTop: '0.2rem' }}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Sales pitch cue */}
+              <div
+                style={{
+                  background: 'rgba(78,165,255,0.06)',
+                  border: '1px solid rgba(78,165,255,0.2)',
+                  borderRadius: '12px',
+                  padding: '1.25rem 1.5rem',
+                  fontSize: '0.875rem',
+                  color: 'var(--text-dim)',
+                  lineHeight: 1.75,
+                }}
+              >
+                <strong style={{ color: 'var(--accent)' }}>💡 Close script:</strong> "In the last {auditResult.windowDays} days, your team missed or
+                delayed {auditResult.missedOpportunities} customer conversations. At your average deal size of ${auditResult.aov}, that's an estimated{' '}
+                <strong style={{ color: '#f87171' }}>${auditResult.revenueLeaked.toLocaleString()}</strong> in potential revenue that walked out the
+                door. Our AI plugs that leak 24/7 — for a fraction of what you just lost this week."
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>

@@ -59,3 +59,31 @@ export const triggerInternalScraper = async (payload: ScraperTriggerPayload): Pr
   const res = await api.post<{ success: boolean; data: ScraperTriggerResult }>('/admin/trigger-scraper', payload);
   return res.data.data;
 };
+
+// ── Leakage Audit ─────────────────────────────────────────────────────────────
+
+export interface LeakageAuditResult {
+  organizationId: string;
+  organizationName: string;
+  windowDays: number;
+  aov: number;
+  generatedAt: string;
+  totalInquiries: number;
+  missedOpportunities: number;
+  revenueLeaked: number;
+  avgResponseTimeMinutes: number | null;
+  responseRate: number;
+}
+
+/**
+ * Fetches a 7-day revenue leakage audit for a given org.
+ * @param organizationId  Prisma org ID of the client
+ * @param aov             Average Order Value in dollars (default 100)
+ * @param days            Lookback window in days (1–30, default 7)
+ */
+export const getLeakageAudit = async (organizationId: string, aov = 100, days = 7): Promise<LeakageAuditResult> => {
+  const res = await api.get<{ success: boolean; data: LeakageAuditResult }>(`/admin/analytics/leakage-audit/${organizationId}`, {
+    params: { aov, days },
+  });
+  return res.data.data;
+};
