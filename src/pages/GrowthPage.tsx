@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../lib/api';
+import { api, triggerInternalScraper } from '../lib/api';
+import type { ScraperTriggerResult } from '../lib/api';
 
 // --- Styled Components / Icons (Inline styles for now to match App.css patterns) ---
 
@@ -109,13 +110,24 @@ const GrowthPage = () => {
   const [submittingCampaign, setSubmittingCampaign] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
 
+  // Dogfooding Scraper State
+  const [scraperQuery, setScraperQuery] = useState('');
+  const [scraperOrgId, setScraperOrgId] = useState('');
+  const [scraperLimit, setScraperLimit] = useState(20);
+  const [scraperLoading, setScraperLoading] = useState(false);
+  const [scraperResult, setScraperResult] = useState<ScraperTriggerResult | null>(null);
+  const [scraperError, setScraperError] = useState<string | null>(null);
+
   // Initial Fetch
   useEffect(() => {
     api.get('/admin/auth/me').then((res) => {
       const profile = res.data?.data?.user;
       setAdminProfile(profile);
       if (profile?.ownedOrganizations?.length > 0) {
-        setSelectedOrgId(profile.ownedOrganizations[0].id);
+        const firstOrgId = profile.ownedOrganizations[0].id as string;
+        setSelectedOrgId(firstOrgId);
+        // Pre-fill scraper org ID with the first owned org for convenience
+        setScraperOrgId(firstOrgId);
       }
     });
   }, []);
@@ -216,6 +228,34 @@ const GrowthPage = () => {
     }
   };
 
+  const handleRunScraper = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scraperQuery.trim() || !scraperOrgId.trim()) return;
+
+    setScraperLoading(true);
+    setScraperResult(null);
+    setScraperError(null);
+
+    try {
+      const result = await triggerInternalScraper({
+        searchQuery: scraperQuery.trim(),
+        organizationId: scraperOrgId.trim(),
+        limit: scraperLimit,
+      });
+      setScraperResult(result);
+      setScraperQuery('');
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+            'The scraper job failed. Check that the backend is reachable and SERPAPI_KEY is set.';
+      setScraperError(message);
+    } finally {
+      setScraperLoading(false);
+    }
+  };
+
   // --- Render ---
 
   return (
@@ -257,7 +297,7 @@ const GrowthPage = () => {
       </header>
 
       {/* Tabs */}
-      <Tabs active={activeTab} onChange={setActiveTab} tabs={['discovery', 'campaigns', 'leads']} />
+      <Tabs active={activeTab} onChange={setActiveTab} tabs={['discovery', 'campaigns', 'leads', 'dogfooding']} />
 
       {/* === Discovery Tab === */}
       {activeTab === 'discovery' && (
@@ -528,10 +568,235 @@ const GrowthPage = () => {
         </div>
       )}
 
-      {/* === Leads Tab (Placeholder) === */}
       {activeTab === 'leads' && (
         <div className='center-screen' style={{ minHeight: '300px' }}>
           <p>View and filter leads across all campaigns here (Coming Soon).</p>
+        </div>
+      )}
+
+      {/* === Dogfooding Tab — Internal Lead Scraper === */}
+      {activeTab === 'dogfooding' && (
+        <div style={{ display: 'grid', gap: '1.5rem', maxWidth: '720px' }}>
+          {/* Header */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.4rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>🎯</span>
+              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Internal Lead Scraper</h2>
+              <span
+                style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  background: 'rgba(249, 176, 79, 0.15)',
+                  color: 'var(--warn)',
+                  border: '1px solid rgba(249, 176, 79, 0.35)',
+                  borderRadius: '6px',
+                  padding: '2px 8px',
+                }}
+              >
+                Dogfooding
+              </span>
+            </div>
+            <p style={{ margin: 0, color: 'var(--text-dim)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+              Scrapes Google Maps via SerpAPI, upserts leads to the target org, generates AI-personalised niche hooks, and fires the{' '}
+              <strong>7-Day Revenue Leakage Audit</strong> outreach campaign immediately.
+            </p>
+          </div>
+
+          {/* Form Card */}
+          <form
+            onSubmit={handleRunScraper}
+            style={{
+              background: 'var(--panel-soft)',
+              border: '1px solid var(--panel-border)',
+              borderRadius: '14px',
+              padding: '1.75rem',
+              display: 'grid',
+              gap: '1.25rem',
+            }}
+          >
+            {/* Search Query */}
+            <div>
+              <label htmlFor='scraper-query' style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
+                Search Query
+              </label>
+              <input
+                id='scraper-query'
+                value={scraperQuery}
+                onChange={(e) => setScraperQuery(e.target.value)}
+                placeholder='e.g. Luxury Real Estate Agencies in Lagos'
+                required
+                style={{ width: '100%', height: '2.8rem' }}
+              />
+              <small style={{ color: 'var(--text-dim)', marginTop: '0.3rem', display: 'block' }}>
+                Include both niche <em>and</em> location — passed directly to Google Maps via SerpAPI.
+              </small>
+            </div>
+
+            {/* Org ID */}
+            <div>
+              <label htmlFor='scraper-org-id' style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
+                Target Organization ID
+              </label>
+              <input
+                id='scraper-org-id'
+                value={scraperOrgId}
+                onChange={(e) => setScraperOrgId(e.target.value)}
+                placeholder='e.g. clxxxxxxxxxxxxxx'
+                required
+                style={{ width: '100%', height: '2.8rem', fontFamily: 'monospace', fontSize: '0.875rem' }}
+              />
+              <small style={{ color: 'var(--text-dim)', marginTop: '0.3rem', display: 'block' }}>
+                The LeadsBox internal org that will own these leads. Contacts and the audit campaign are created under this org.
+              </small>
+            </div>
+
+            {/* Limit */}
+            <div>
+              <label htmlFor='scraper-limit' style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
+                Max Results
+                <span style={{ fontWeight: 400, color: 'var(--text-dim)', marginLeft: '0.5rem' }}>(1–50)</span>
+              </label>
+              <input
+                id='scraper-limit'
+                type='number'
+                min={1}
+                max={50}
+                value={scraperLimit}
+                onChange={(e) => setScraperLimit(Number(e.target.value))}
+                style={{ width: '100px', height: '2.8rem' }}
+              />
+            </div>
+
+            {/* Submit */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type='submit'
+                disabled={scraperLoading || !scraperQuery.trim() || !scraperOrgId.trim()}
+                style={{
+                  width: 'auto',
+                  padding: '0 2rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  opacity: scraperLoading ? 0.7 : 1,
+                }}
+              >
+                {scraperLoading ? (
+                  <>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: '1em',
+                        height: '1em',
+                        borderRadius: '50%',
+                        border: '2px solid rgba(255,255,255,0.3)',
+                        borderTopColor: '#fff',
+                        animation: 'spin 0.7s linear infinite',
+                      }}
+                    />
+                    Running Scraper…
+                  </>
+                ) : (
+                  'Run Scraper & Dispatch Campaign'
+                )}
+              </button>
+            </div>
+          </form>
+
+          {/* Success banner */}
+          {scraperResult && (
+            <div
+              style={{
+                background: 'rgba(68, 211, 158, 0.08)',
+                border: '1px solid rgba(68, 211, 158, 0.35)',
+                borderRadius: '12px',
+                padding: '1.25rem 1.5rem',
+                display: 'grid',
+                gap: '0.75rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>✅</span>
+                <strong style={{ color: 'var(--success)', fontSize: '1rem' }}>Scraper job dispatched successfully!</strong>
+              </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                  gap: '0.75rem',
+                }}
+              >
+                {(
+                  [
+                    { label: 'Scraped', value: scraperResult.scraped },
+                    { label: 'Contacts', value: scraperResult.upsertedContacts },
+                    { label: 'Leads', value: scraperResult.upsertedLeads },
+                    { label: 'In Campaign', value: scraperResult.linkedToCampaign },
+                    { label: 'Skipped', value: scraperResult.skipped },
+                  ] as const
+                ).map(({ label, value }) => (
+                  <div
+                    key={label}
+                    style={{
+                      background: 'rgba(14, 29, 52, 0.6)',
+                      borderRadius: '8px',
+                      padding: '0.75rem',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{value}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.2rem' }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+              <small style={{ color: 'var(--text-dim)' }}>
+                Campaign ID: <code style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--accent)' }}>{scraperResult.campaignId}</code>.
+                The first 5 leads are being contacted now. The rest will drain via the 2-min cron.
+              </small>
+            </div>
+          )}
+
+          {/* Error banner */}
+          {scraperError && (
+            <div
+              style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                borderRadius: '12px',
+                padding: '1.25rem 1.5rem',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+              }}
+            >
+              <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>⚠️</span>
+              <div>
+                <strong style={{ color: '#f87171' }}>Scraper failed</strong>
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: 'var(--text-dim)' }}>{scraperError}</p>
+              </div>
+              <button
+                onClick={() => setScraperError(null)}
+                style={{
+                  marginLeft: 'auto',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-dim)',
+                  cursor: 'pointer',
+                  fontSize: '1.1rem',
+                  lineHeight: 1,
+                  flexShrink: 0,
+                }}
+                aria-label='Dismiss error'
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* Inline spinner keyframe */}
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
     </section>
