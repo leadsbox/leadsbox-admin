@@ -87,3 +87,32 @@ export const getLeakageAudit = async (organizationId: string, aov = 100, days = 
   });
   return res.data.data;
 };
+
+// ── System Anomalies ──────────────────────────────────────────────────────────
+
+export type AnomalySeverity = 'High' | 'Medium' | 'Low';
+export type AnomalyType = 'webhook_failure' | 'followup_failure' | 'queue_backlog';
+
+export interface Anomaly {
+  id: string;
+  anomalyType: AnomalyType;
+  organizationId: string | null;
+  organizationName: string | null;
+  severity: AnomalySeverity;
+  timestamp: string;
+  description: string;
+  meta: Record<string, unknown>;
+}
+
+export interface AnomaliesResponse {
+  hours: number;
+  generatedAt: string;
+  anomalies: Anomaly[];
+}
+
+export const getSystemAnomalies = async (hours = 48): Promise<AnomaliesResponse> => {
+  const res = await api.get<{ success: boolean; data: AnomaliesResponse }>('/admin/anomalies', {
+    params: { hours },
+  });
+  return res.data.data;
+};

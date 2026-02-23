@@ -12,6 +12,7 @@ import OverviewPage from './pages/OverviewPage';
 import UsersPage from './pages/UsersPage';
 import OrganizationsPage from './pages/OrganizationsPage';
 import GrowthPage from './pages/GrowthPage';
+import AnomaliesPage from './pages/AnomaliesPage';
 
 const App = () => {
   const [ready, setReady] = useState(false);
@@ -90,6 +91,7 @@ const App = () => {
           <Route path='/organizations' element={<OrganizationsPage />} />
           <Route path='/subscribers' element={<SubscribersPage />} />
           <Route path='/growth' element={<GrowthPage />} />
+          <Route path='/anomalies' element={<AnomaliesPage />} />
         </Route>
 
         <Route path='*' element={<Navigate to={isAuthenticated ? '/overview' : '/login'} replace />} />
